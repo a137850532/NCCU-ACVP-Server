@@ -1,3 +1,33 @@
+# NCCU ACVP Server — Research Fork
+
+> **Research repository**
+>
+> This repository is a research fork of
+> [William901105/NCCU-ACVP-Server](https://github.com/William901105/NCCU-ACVP-Server)
+> and is maintained for master's thesis research on ACVP-based validation of
+> post-quantum cryptographic implementations.
+>
+> The research baseline is derived from the upstream `strict` workflow and
+> preserves its strict ACVP architecture, PostgreSQL storage, access-token
+> workflow, and NIST GenVal execution backend.
+>
+> Research-specific changes currently include:
+>
+> - Restored printable **Validation Summary Report**
+> - Restored printable **Diagnostic Report**
+> - Detailed failed test-group and test-case diagnostics
+> - IUT response SHA-256 and implementation metadata in diagnostic reports
+> - Improved print pagination for validation reports
+>
+> Future thesis-oriented experiments, evaluation tooling, and research
+> extensions will be developed in this repository.
+>
+> **Important:** This system is a research and validation platform. It is not
+> the official NIST ACVP service and does not issue NIST/CAVP validation
+> certificates.
+
+---
+
 # NCCU ACVP Server
 
 NCCU ACVP Server exposes a strict-only ACVP v1 workflow for FIPS 203 / ML-KEM
