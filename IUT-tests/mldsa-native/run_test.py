@@ -215,14 +215,18 @@ def _import_dilithium_py(source_arg: Optional[str]) -> Any:
             Path("/tmp/dilithium-py-source/src"),
         ],
     ):
-        _install_future_annotations_importer("dilithium_py", candidate)
+        candidate_text = str(candidate)
+
+        if candidate_text not in sys.path:
+            sys.path.insert(0, candidate_text)
+
         try:
             return importlib.import_module("dilithium_py.ml_dsa")
         except Exception:
             _purge_modules("dilithium_py")
             continue
-    return None
 
+    return None
 
 def _import_mldsa_py(source_arg: Optional[str]) -> Any:
     try:
