@@ -5,6 +5,7 @@ import {
   clearStoredAccessToken,
   createAcvpSession,
   downloadAcvpSessionReportPdf,
+  getAcvpServerVersion,
   getAcvpSession,
   getAcvpSessionResults,
   getAcvpSessionVectorSets,
@@ -19,11 +20,14 @@ import {
 import type { AccessToken } from "./api";
 import { downloadBlob, downloadJson } from "./acvp";
 import JsonViewer from "./components/JsonViewer";
+import DiagnosticReport from "./components/DiagnosticReport";
+import ValidationReport from "./components/ValidationReport";
 import { buildRegistrationAlgorithms } from "./registration";
 import { FIPS_REGISTRY, getFipsConfig } from "./registry";
 import type {
   AcvpParameterSet,
   AcvpRevision,
+  AcvpServerVersion,
   AcvpSessionDetail,
   AcvpSessionRegistration,
   AcvpSessionSummary,
@@ -70,10 +74,15 @@ export default function App() {
   const [activeVectorSet, setActiveVectorSet] = useState<NormalizedVectorSetView | null>(null);
   const [uploadedResponse, setUploadedResponse] = useState<JsonValue | null>(null);
   const [uploadedResponseName, setUploadedResponseName] = useState("");
+  const [uploadedResponseSha256, setUploadedResponseSha256] = useState("");
   const [vectorResult, setVectorResult] = useState<NormalizedVectorSetResultView | null>(null);
   const [sessionResults, setSessionResults] = useState<NormalizedSessionResultsView | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [reportGeneratedAt, setReportGeneratedAt] = useState<string | null>(null);
+  const [printReportKind, setPrintReportKind] =
+    useState<"summary" | "diagnostic">("summary");
+  const [serverVersion, setServerVersion] = useState<AcvpServerVersion | null>(null);
   const [accessToken, setAccessToken] = useState<AccessToken | null>(() => getStoredAccessToken());
 
   const activeVectorSummary =
@@ -87,6 +96,22 @@ export default function App() {
     seedError
   );
   const sessionReportAvailable = isSessionReportAvailable(activeSession, sessionResults);
+  const diagnosticReportAvailable = Boolean(vectorResult);
+
+  function printReport(kind: "summary" | "diagnostic") {
+    setPrintReportKind(kind);
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.print());
+    });
+  }
+
+  useEffect(() => {
+    getAcvpServerVersion()
+      .then(setServerVersion)
+      .catch(() => setServerVersion(null));
+  }, []);
+
   useEffect(() => {
     if (!accessToken) {
       setNotice((current) =>
@@ -203,6 +228,8 @@ export default function App() {
     setActiveVectorSet(vector);
     setUploadedResponse(null);
     setUploadedResponseName("");
+    setUploadedResponseSha256("");
+    setReportGeneratedAt(null);
     setVectorResult(null);
     setSessionResults(null);
     setVectorSets(await getAcvpSessionVectorSets(sessionId));
@@ -212,13 +239,26 @@ export default function App() {
     if (!file) {
       return;
     }
+
     setNotice(null);
+
     try {
-      setUploadedResponse(JSON.parse(await file.text()) as JsonValue);
+      const fileBytes = await file.arrayBuffer();
+      const text = new TextDecoder().decode(fileBytes);
+      const parsedResponse = JSON.parse(text) as JsonValue;
+      const digest = await crypto.subtle.digest("SHA-256", fileBytes);
+      const sha256 = Array.from(new Uint8Array(digest))
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+
+      setUploadedResponse(parsedResponse);
       setUploadedResponseName(file.name);
+      setUploadedResponseSha256(sha256);
       setVectorResult(null);
       setSessionResults(null);
+      setReportGeneratedAt(null);
     } catch {
+      setUploadedResponseSha256("");
       setNotice({ text: "The selected response file is not valid JSON.", tone: "error" });
     }
   }
@@ -260,6 +300,7 @@ export default function App() {
     setSessionResults(results);
     setActiveSession(session);
     setVectorSets(vectors);
+    setReportGeneratedAt(new Date().toISOString());
   }
 
   function clearVectorWorkspace() {
@@ -267,6 +308,8 @@ export default function App() {
     setActiveVectorSet(null);
     setUploadedResponse(null);
     setUploadedResponseName("");
+    setUploadedResponseSha256("");
+    setReportGeneratedAt(null);
     setVectorResult(null);
     setSessionResults(null);
   }
@@ -553,6 +596,27 @@ export default function App() {
             <button
               type="button"
               className="secondary"
+              onClick={() => printReport("summary")}
+              disabled={(!vectorResult && !sessionResults) || isBusy}
+            >
+              Print Summary Report
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => printReport("diagnostic")}
+              disabled={!diagnosticReportAvailable || isBusy}
+              title={
+                diagnosticReportAvailable
+                  ? "Print detailed validation report"
+                  : "Diagnostic Report is available after validation results are loaded."
+              }
+            >
+              Print Diagnostic Report
+            </button>
+            <button
+              type="button"
+              className="secondary"
               onClick={() => void downloadPdfReport()}
               disabled={!sessionReportAvailable || isBusy}
               title={
@@ -570,6 +634,33 @@ export default function App() {
         </section>
 
       </section>
+      <div className="print-report-container" aria-hidden="true">
+        {printReportKind === "diagnostic" ? (
+          <DiagnosticReport
+            session={activeSession}
+            vectorSet={activeVectorSummary}
+            vectorSetView={activeVectorSet}
+            responseFileName={uploadedResponseName}
+            responseSha256={uploadedResponseSha256}
+            reportGeneratedAt={reportGeneratedAt}
+            serverVersion={serverVersion}
+            vectorResult={vectorResult}
+            sessionResults={sessionResults}
+          />
+        ) : (
+          <ValidationReport
+            session={activeSession}
+            vectorSet={activeVectorSummary}
+            vectorSetView={activeVectorSet}
+            responseFileName={uploadedResponseName}
+            responseSha256={uploadedResponseSha256}
+            reportGeneratedAt={reportGeneratedAt}
+            serverVersion={serverVersion}
+            vectorResult={vectorResult}
+            sessionResults={sessionResults}
+          />
+        )}
+      </div>
     </main>
   );
 }

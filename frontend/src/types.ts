@@ -9,6 +9,17 @@ export type JsonValue =
 export type JsonObject = Record<string, JsonValue>;
 
 export type AcvpVersion = "1.0";
+
+export interface AcvpServerVersion {
+  acvVersion: string;
+  apiVersion: string;
+  serverName: string;
+  serverVersion?: string;
+  workflowPolicy?: string;
+  executionBackend?: string;
+  nistReferences?: JsonValue[];
+  [key: string]: JsonValue | undefined;
+}
 export type AcvpEnvelope<T> = [{ acvVersion: AcvpVersion }, T];
 export type AcvpVectorSetId = number;
 

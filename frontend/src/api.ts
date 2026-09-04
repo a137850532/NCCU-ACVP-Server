@@ -1,5 +1,6 @@
 import { acvpEnvelope, isAcvpEnvelope, unwrapAcvpEnvelope } from "./acvp";
 import type {
+  AcvpServerVersion,
   AcvpSessionDetail,
   AcvpSessionRegistration,
   AcvpSessionSummary,
@@ -129,6 +130,10 @@ export function clearStoredAccessToken(): void {
   if (typeof localStorage !== "undefined") {
     localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
   }
+}
+
+export async function getAcvpServerVersion(): Promise<AcvpServerVersion> {
+  return request<AcvpServerVersion>("/acvp/v1/version");
 }
 
 export async function listAcvpSessions(status?: string): Promise<AcvpSessionSummary[]> {
